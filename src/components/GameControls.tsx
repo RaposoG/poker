@@ -39,7 +39,10 @@ export function GameControls({ room, currentPlayer }: GameControlsProps) {
   );
   const canCheck = callAmount === 0;
 
-  const handleAction = (actionType: GameAction["type"], amount?: number) => {
+  const handleAction = async (
+    actionType: GameAction["type"],
+    amount?: number,
+  ) => {
     const action: GameAction = {
       type: actionType,
       playerId: currentPlayer.id,
@@ -47,20 +50,15 @@ export function GameControls({ room, currentPlayer }: GameControlsProps) {
       timestamp: new Date(),
     };
 
-    const success = executeAction(action);
+    const success = await executeAction(action);
     if (success) {
       setRaiseAmount(0);
-      
-      // Verificar se a rodada terminou e avançar automaticamente
-      setTimeout(() => {
-        // Esta lógica será implementada no contexto
-      }, 1000);
     }
   };
 
-  const handleDeclareWinner = () => {
+  const handleDeclareWinner = async () => {
     if (winnerId && potAmount > 0) {
-      declareWinner(winnerId, potAmount);
+      await declareWinner(winnerId, potAmount);
       setShowWinnerDialog(false);
       setWinnerId("");
       setPotAmount(room.currentPot);
