@@ -117,13 +117,40 @@ export class PokerGame {
       player.isActive = true;
     });
 
+    // Mover o botão do dealer para a próxima posição
+    this.moveDealerButton();
+
     // Definir blinds
     this.setBlinds();
 
     // Coletar blinds
     this.collectBlinds();
 
+    // Definir primeiro jogador a agir (próximo ao big blind)
+    this.setFirstToAct();
+
     this.room.lastAction = "Nova mão iniciada";
+  }
+
+  // Mover o botão do dealer
+  private moveDealerButton(): void {
+    const activePlayers = this.room.players.filter((p) => p.isActive);
+    if (activePlayers.length < 2) return;
+
+    // Encontrar o dealer atual
+    const currentDealerIndex = activePlayers.findIndex((p) => p.isDealer);
+    const nextDealerIndex = (currentDealerIndex + 1) % activePlayers.length;
+
+    // Resetar todos os blinds
+    this.room.players.forEach((player) => {
+      player.isDealer = false;
+      player.isSmallBlind = false;
+      player.isBigBlind = false;
+    });
+
+    // Definir novo dealer
+    activePlayers[nextDealerIndex].isDealer = true;
+    this.room.currentDealer = nextDealerIndex;
   }
 
   // Definir posições dos blinds
@@ -131,29 +158,31 @@ export class PokerGame {
     const activePlayers = this.room.players.filter((p) => p.isActive);
     if (activePlayers.length < 2) return;
 
-    // Resetar blinds
-    this.room.players.forEach((player) => {
-      player.isDealer = false;
-      player.isSmallBlind = false;
-      player.isBigBlind = false;
-    });
+    const dealerIndex = activePlayers.findIndex((p) => p.isDealer);
+    
+    // Small blind é o próximo jogador após o dealer
+    const smallBlindIndex = (dealerIndex + 1) % activePlayers.length;
+    activePlayers[smallBlindIndex].isSmallBlind = true;
 
-    // Definir dealer (posição 0)
-    activePlayers[0].isDealer = true;
-    this.room.currentDealer = 0;
+    // Big blind é o próximo jogador após o small blind
+    const bigBlindIndex = (dealerIndex + 2) % activePlayers.length;
+    activePlayers[bigBlindIndex].isBigBlind = true;
+  }
 
-    // Definir small blind (próxima posição)
-    if (activePlayers.length > 1) {
-      activePlayers[1].isSmallBlind = true;
-    }
+  // Definir primeiro jogador a agir
+  private setFirstToAct(): void {
+    const activePlayers = this.room.players.filter((p) => p.isActive);
+    if (activePlayers.length < 2) return;
 
-    // Definir big blind (próxima posição)
-    if (activePlayers.length > 2) {
-      activePlayers[2].isBigBlind = true;
-      this.room.currentPlayer = 2;
+    const bigBlindIndex = activePlayers.findIndex((p) => p.isBigBlind);
+    
+    // Em heads-up (2 jogadores), o small blind age primeiro
+    if (activePlayers.length === 2) {
+      const smallBlindIndex = activePlayers.findIndex((p) => p.isSmallBlind);
+      this.room.currentPlayer = smallBlindIndex;
     } else {
-      activePlayers[1].isBigBlind = true;
-      this.room.currentPlayer = 1;
+      // Com 3+ jogadores, o primeiro jogador após o big blind age primeiro
+      this.room.currentPlayer = (bigBlindIndex + 1) % activePlayers.length;
     }
   }
 
@@ -188,6 +217,11 @@ export class PokerGame {
   executeAction(action: GameAction): boolean {
     const player = this.room.players.find((p) => p.id === action.playerId);
     if (!player || !player.isActive) return false;
+
+    // Verificar se é a vez do jogador
+    const activePlayers = this.room.players.filter((p) => p.isActive);
+    const currentPlayerIndex = activePlayers.findIndex((p) => p.id === action.playerId);
+    if (currentPlayerIndex !== this.room.currentPlayer) return false;
 
     switch (action.type) {
       case "fold":
@@ -238,7 +272,77 @@ export class PokerGame {
       }
     }
 
+    // Mover para o próximo jogador
+    this.moveToNextPlayer();
+
     return true;
+  }
+
+  // Mover para o próximo jogador
+  private moveToNextPlayer(): void {
+    const activePlayers = this.room.players.filter((p) => p.isActive);
+    if (activePlayers.length <= 1) return;
+
+    this.room.currentPlayer = (this.room.currentPlayer + 1) % activePlayers.length;
+  }
+
+  // Verificar se a rodada de apostas terminou
+  checkRoundComplete(): boolean {
+    const activePlayers = this.room.players.filter((p) => p.isActive);
+    if (activePlayers.length <= 1) return true;
+
+    // Verificar se todos os jogadores ativos apostaram a mesma quantia
+    const maxBet = Math.max(...activePlayers.map((p) => p.currentBet));
+    const allBetsEqual = activePlayers.every((p) => p.currentBet === maxBet);
+
+    return allBetsEqual;
+  }
+
+  // Avançar para a próxima rodada
+  advanceToNextRound(): void {
+    switch (this.room.currentRound) {
+      case "preflop":
+        this.room.currentRound = "flop";
+        this.room.communityCards = ["🂡", "🂢", "🂣"]; // Simular cartas do flop
+        break;
+      case "flop":
+        this.room.currentRound = "turn";
+        this.room.communityCards.push("🂤"); // Adicionar carta do turn
+        break;
+      case "turn":
+        this.room.currentRound = "river";
+        this.room.communityCards.push("🂥"); // Adicionar carta do river
+        break;
+      case "river":
+        this.room.currentRound = "showdown";
+        break;
+    }
+
+    // Resetar apostas da rodada
+    this.room.players.forEach((player) => {
+      player.currentBet = 0;
+    });
+    this.room.roundBets = {};
+
+    // Definir primeiro jogador a agir na nova rodada
+    this.setFirstToActInRound();
+  }
+
+  // Definir primeiro jogador a agir na rodada
+  private setFirstToActInRound(): void {
+    const activePlayers = this.room.players.filter((p) => p.isActive);
+    if (activePlayers.length < 2) return;
+
+    const dealerIndex = activePlayers.findIndex((p) => p.isDealer);
+    
+    // Em todas as rodadas após o preflop, o small blind age primeiro
+    if (this.room.currentRound !== "preflop") {
+      const smallBlindIndex = activePlayers.findIndex((p) => p.isSmallBlind);
+      this.room.currentPlayer = smallBlindIndex;
+    } else {
+      // No preflop, usar a lógica já implementada
+      this.setFirstToAct();
+    }
   }
 
   // Calcular valor para call

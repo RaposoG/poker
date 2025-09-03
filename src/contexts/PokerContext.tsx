@@ -138,7 +138,9 @@ export function PokerProvider({ children }: { children: React.ReactNode }) {
     }
   ) => {
     const room = PokerGame.createRoom(name, ownerName, settings);
+    const owner = room.players[0]; // O criador é automaticamente o primeiro jogador
     dispatch({ type: 'CREATE_ROOM', payload: room });
+    dispatch({ type: 'SET_CURRENT_PLAYER', payload: owner });
   };
 
   const joinRoom = (roomId: string, playerName: string, password?: string): boolean => {
