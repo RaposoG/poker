@@ -34,7 +34,7 @@ export function CreateRoomDialog({ children }: CreateRoomDialogProps) {
   const { createRoom } = usePoker();
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.roomName.trim() || !formData.ownerName.trim()) {
@@ -47,31 +47,60 @@ export function CreateRoomDialog({ children }: CreateRoomDialogProps) {
       return;
     }
 
-    createRoom(
-      formData.roomName,
-      formData.ownerName,
-      {
-        bigBlind: formData.bigBlind,
-        smallBlind: Math.floor(formData.bigBlind / 2),
-        startingChips: formData.startingChips,
-        maxPlayers: formData.maxPlayers,
-        password: formData.hasPassword ? formData.password : undefined,
+    try {
+      // Criar sala via API
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.roomName,
+          ownerName: formData.ownerName,
+          bigBlind: formData.bigBlind,
+          smallBlind: Math.floor(formData.bigBlind / 2),
+          startingChips: formData.startingChips,
+          maxPlayers: formData.maxPlayers,
+          password: formData.hasPassword ? formData.password : undefined,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Criar sala no contexto local
+        createRoom(
+          formData.roomName,
+          formData.ownerName,
+          {
+            bigBlind: formData.bigBlind,
+            smallBlind: Math.floor(formData.bigBlind / 2),
+            startingChips: formData.startingChips,
+            maxPlayers: formData.maxPlayers,
+            password: formData.hasPassword ? formData.password : undefined,
+          }
+        );
+
+        setOpen(false);
+        setFormData({
+          roomName: '',
+          ownerName: '',
+          bigBlind: 10,
+          startingChips: 1000,
+          maxPlayers: 6,
+          hasPassword: false,
+          password: '',
+        });
+
+        // Redirecionar para a sala criada
+        router.push('/room');
+      } else {
+        alert('Erro ao criar sala. Tente novamente.');
       }
-    );
-
-    setOpen(false);
-    setFormData({
-      roomName: '',
-      ownerName: '',
-      bigBlind: 10,
-      startingChips: 1000,
-      maxPlayers: 6,
-      hasPassword: false,
-      password: '',
-    });
-
-    // Redirecionar para a sala criada
-    router.push('/room');
+    } catch (error) {
+      console.error('Erro ao criar sala:', error);
+      alert('Erro ao criar sala. Tente novamente.');
+    }
   };
 
   const handleInputChange = (field: string, value: string | number | boolean) => {

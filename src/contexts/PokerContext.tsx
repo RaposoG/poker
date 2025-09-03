@@ -105,18 +105,32 @@ export function PokerProvider({ children }: { children: React.ReactNode }) {
 
   // Carregar salas do localStorage na inicialização
   useEffect(() => {
-    const savedRooms = localStorage.getItem('poker-rooms');
-    if (savedRooms) {
+    const loadRooms = async () => {
       try {
-        const rooms = JSON.parse(savedRooms).map((room: Room & { createdAt: string }) => ({
-          ...room,
-          createdAt: new Date(room.createdAt),
-        }));
-        dispatch({ type: 'LOAD_ROOMS', payload: rooms });
+        // Tentar carregar do localStorage primeiro
+        const savedRooms = localStorage.getItem('poker-rooms');
+        if (savedRooms) {
+          const rooms = JSON.parse(savedRooms).map((room: Room & { createdAt: string }) => ({
+            ...room,
+            createdAt: new Date(room.createdAt),
+          }));
+          dispatch({ type: 'LOAD_ROOMS', payload: rooms });
+        }
+
+        // Tentar carregar da API também
+        const response = await fetch('/api/rooms');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.rooms && data.rooms.length > 0) {
+            dispatch({ type: 'LOAD_ROOMS', payload: data.rooms });
+          }
+        }
       } catch (error) {
         console.error('Erro ao carregar salas:', error);
       }
-    }
+    };
+
+    loadRooms();
   }, []);
 
   // Salvar salas no localStorage sempre que houver mudanças
@@ -213,6 +227,18 @@ export function PokerProvider({ children }: { children: React.ReactNode }) {
     if (success) {
       const updatedRoom = state.game.getRoomState();
       dispatch({ type: 'UPDATE_ROOM', payload: updatedRoom });
+      
+      // Verificar se a rodada terminou
+      if (state.game.checkRoundComplete()) {
+        // Avançar para a próxima rodada após um pequeno delay
+        setTimeout(() => {
+          state.game?.advanceToNextRound();
+          const finalRoom = state.game?.getRoomState();
+          if (finalRoom) {
+            dispatch({ type: 'UPDATE_ROOM', payload: finalRoom });
+          }
+        }, 2000); // 2 segundos de delay para mostrar a ação
+      }
     }
     return success;
   };

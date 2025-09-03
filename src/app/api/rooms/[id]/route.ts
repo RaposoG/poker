@@ -5,10 +5,11 @@ let rooms: any[] = [];
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const room = rooms.find(r => r.id === params.id);
+    const { id } = await params;
+    const room = rooms.find(r => r.id === id);
     
     if (!room) {
       return NextResponse.json(
@@ -28,11 +29,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const roomData = await request.json();
-    const roomIndex = rooms.findIndex(r => r.id === params.id);
+    const roomIndex = rooms.findIndex(r => r.id === id);
     
     if (roomIndex === -1) {
       return NextResponse.json(
@@ -54,10 +56,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const roomIndex = rooms.findIndex(r => r.id === params.id);
+    const { id } = await params;
+    const roomIndex = rooms.findIndex(r => r.id === id);
     
     if (roomIndex === -1) {
       return NextResponse.json(

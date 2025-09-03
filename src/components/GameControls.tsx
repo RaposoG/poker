@@ -47,8 +47,15 @@ export function GameControls({ room, currentPlayer }: GameControlsProps) {
       timestamp: new Date(),
     };
 
-    executeAction(action);
-    setRaiseAmount(0);
+    const success = executeAction(action);
+    if (success) {
+      setRaiseAmount(0);
+      
+      // Verificar se a rodada terminou e avançar automaticamente
+      setTimeout(() => {
+        // Esta lógica será implementada no contexto
+      }, 1000);
+    }
   };
 
   const handleDeclareWinner = () => {
