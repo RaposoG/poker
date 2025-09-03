@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  ownedRooms Room[]   @relation("RoomOwner")
+  players    Player[]
+
+  @@map("users")
+}
+
+model Room {
+  id             String   @id @default(cuid())
+  name           String
+  password       String?
+  isActive       Boolean  @default(true)
+  maxPlayers     Int      @default(6)
+  bigBlind       Int      @default(10)
+  smallBlind     Int      @default(5)
+  startingChips  Int      @default(1000)
+  currentPot     Int      @default(0)
+  currentRound   String   @default("preflop") // preflop, flop, turn, river, showdown
+  currentDealer  Int      @default(0)
+  currentPlayer  Int      @default(0)
+  communityCards String   @default("[]") // JSON array
+  roundBets      String   @default("{}") // JSON object
+  lastAction     String   @default("Sala criada")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  ownerId    String
+  owner      User         @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  players    Player[]
+  GameAction GameAction[]
+  HandResult HandResult[]
+
+  @@map("rooms")
+}
+
+model Player {
+  id           String   @id @default(cuid())
+  name         String
+  chips        Int      @default(1000)
+  isDealer     Boolean  @default(false)
+  isSmallBlind Boolean  @default(false)
+  isBigBlind   Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  currentBet   Int      @default(0)
+  totalBet     Int      @default(0)
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  userId     String?
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  roomId     String
+  room       Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  GameAction GameAction[]
+
+  @@map("players")
+}
+
+model GameAction {
+  id        String   @id @default(cuid())
+  type      String // fold, call, raise, check, all-in
+  amount    Int?
+  timestamp DateTime @default(now())
+
+  // Relacionamentos
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  roomId   String
+  room     Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("game_actions")
+}
+
+model HandResult {
+  id         String   @id @default(cuid())
+  winnerId   String
+  winnerName String
+  pot        Int
+  hand       String
+  timestamp  DateTime @default(now())
+
+  // Relacionamentos
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("hand_results")
+}

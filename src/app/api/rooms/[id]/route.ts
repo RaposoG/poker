@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Simulando um banco de dados em memória
-let rooms: any[] = [];
+import { getRoomById, updateRoom, deleteRoom, formatRoomForFrontend } from '@/lib/room-service';
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const room = rooms.find(r => r.id === id);
+    const room = await getRoomById(id);
     
     if (!room) {
       return NextResponse.json(
@@ -18,8 +16,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ room });
+    const formattedRoom = formatRoomForFrontend(room);
+    return NextResponse.json({ room: formattedRoom });
   } catch (error) {
+    console.error('Erro ao buscar sala:', error);
     return NextResponse.json(
       { error: 'Erro ao buscar sala' },
       { status: 500 }
@@ -34,19 +34,20 @@ export async function PUT(
   try {
     const { id } = await params;
     const roomData = await request.json();
-    const roomIndex = rooms.findIndex(r => r.id === id);
     
-    if (roomIndex === -1) {
+    const room = await updateRoom(id, roomData);
+    
+    if (!room) {
       return NextResponse.json(
         { error: 'Sala não encontrada' },
         { status: 404 }
       );
     }
 
-    rooms[roomIndex] = { ...rooms[roomIndex], ...roomData };
-    
-    return NextResponse.json({ room: rooms[roomIndex] });
+    const formattedRoom = formatRoomForFrontend(room);
+    return NextResponse.json({ room: formattedRoom });
   } catch (error) {
+    console.error('Erro ao atualizar sala:', error);
     return NextResponse.json(
       { error: 'Erro ao atualizar sala' },
       { status: 500 }
@@ -60,19 +61,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const roomIndex = rooms.findIndex(r => r.id === id);
-    
-    if (roomIndex === -1) {
-      return NextResponse.json(
-        { error: 'Sala não encontrada' },
-        { status: 404 }
-      );
-    }
-
-    rooms.splice(roomIndex, 1);
+    await deleteRoom(id);
     
     return NextResponse.json({ message: 'Sala removida com sucesso' });
   } catch (error) {
+    console.error('Erro ao remover sala:', error);
     return NextResponse.json(
       { error: 'Erro ao remover sala' },
       { status: 500 }
